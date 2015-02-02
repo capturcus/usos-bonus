@@ -47,8 +47,7 @@ CREATE TABLE point_nodes (
   comment varchar(255) DEFAULT NULL,
   parent int(11) DEFAULT NULL,
   identifier int(11) NOT NULL,
-  przedmiot_id varchar(255) NOT NULL,
-  PRIMARY KEY (node_id)
+  przedmiot_id varchar(255) NOT NULL
 );");
 
 $wpdb->query("
@@ -358,7 +357,6 @@ function db_notes_declarations() {
 		from wp_posts
 		join wp_postmeta as m1 on (m1.post_id = wp_posts.ID and m1.meta_key = \"deklaracja_id\")) as temp
 		on temp.deklaracja_id = deklaracje.ID
-		where wp_wslusersprofiles.identifier = {$id}
 		;
 	");
 
