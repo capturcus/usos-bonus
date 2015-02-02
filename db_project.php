@@ -283,7 +283,7 @@ function db_posted_homework() {
 	}
 }
 
-function showNode($node_id){
+function showNode($node_id, $stats){
 	$id = getCurrentIdentifier();
 	global $wpdb;
 	$results = $wpdb->get_results("select * from point_nodes where node_id = {$node_id} and identifier = {$id};", ARRAY_N);
@@ -294,8 +294,10 @@ function showNode($node_id){
 	if($results[0][1] == "pkt"){
 		echo " - ";
 		echo $results[0][3];
+		if($stats[$results[0][0]]["mx"] != 0)
+			echo ", MIN: " . $stats[$results[0][0]]["mn"] . ", AVG: " . $stats[$results[0][0]]["a"] . ", MAX: " . $stats[$results[0][0]]["mx"];
 		if($results[0][4] != ""){
-			echo "; KOMENTARZ: ";
+			echo "<br>KOMENTARZ: ";
 			echo $results[0][4];
 		}
 	}
@@ -303,14 +305,14 @@ function showNode($node_id){
 	if(count($results) != 0){
 		echo "<ul>";
 		foreach ($results as $value) {
-			showNode($value->node_id);
+			showNode($value->node_id, $stats);
 		}
 		echo "</ul>";
 	}
 	echo "</li>";
 }
 
-function showTree($pid, $node_id) {
+function showTree($pid, $node_id, $stats) {
 	global $wpdb;
 	$id = getCurrentIdentifier();
 
@@ -321,7 +323,7 @@ function showTree($pid, $node_id) {
 	else
 		return;
 
-	showNode($node_id);
+	showNode($node_id, $stats);
 
 	echo "<br>";
 	echo "<hr>";
@@ -330,15 +332,28 @@ function showTree($pid, $node_id) {
 function db_show_points() {
 	$id = getCurrentIdentifier();
 	global $wpdb;
+
+	$results = $wpdb->get_results("select node_id, max(pkt) as mx, min(pkt) as mn, avg(pkt) as a from point_nodes group by node_id;");
+	
+	$stats = array();
+
+	foreach ($results as $value) {
+		$temp = array();
+		$temp["mx"] = $value->mx;
+		$temp["a"] = $value->a;
+		$temp["mn"] = $value->mn;
+		$stats[$value->node_id] = $temp;
+	}
+
 	$results = $wpdb->get_results("select przedmiot_id, node_id from point_nodes where identifier = {$id} and type like \"root|1\";");
 	foreach ($results as $value) {
-		showTree($value->przedmiot_id, $value->node_id);
+		showTree($value->przedmiot_id, $value->node_id, $stats);
 	}
 	echo "<h1>STARE PRZEDMIOTY</h1>";
 	echo "<hr>";
 	$results = $wpdb->get_results("select przedmiot_id, node_id from point_nodes where identifier = {$id} and type like \"root|0\";");
 	foreach ($results as $value) {
-		showTree($value->przedmiot_id, $value->node_id);
+		showTree($value->przedmiot_id, $value->node_id, $stats);
 	}
 }
 
