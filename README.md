@@ -1,7 +1,6 @@
-# usos-bonus
-WTYCZKA USOS BONUS
+#WTYCZKA USOS BONUS
 
-Instrukcja instalacji:
+#Instrukcja instalacji:
 Najpierw należy zainstalować wtyczkę Wordpress Social Login zmodyfikowaną przez Henryka Michalewskiego:
 https://github.com/henrykmichalewski/wordpress-social-login
 Potem należy zastąpić plik wp-content\plugins\wordpress-social-login\hybridauth\Hybrid\Providers\Usosweb.php
@@ -9,7 +8,7 @@ plikiem wtyczki USOS Bonus.
 Następnie należy zainstalować samą wtyczkę - co robimy jak zwykle w wordpressie.
 W momencie włączenia wtyczki zostaje zainicjalizowana struktura bazy danych.
 
-Instrukcja obsługi
+#Instrukcja obsługi
 
 Wtyczka dodaje następujące shortcode'y:
 db_calendar:
@@ -36,6 +35,8 @@ Przyznaj odznakę (wymaga podwyższonych uprawnień):
 	Pozwala przyznać odznakę za aktywność użytkownikowi.
 
 Liczba zdobytych odznak wyświetla się na górze na pasku.
+
+#Opis działania:
 
 Deklaracje na notatki działają tak, że jak stworzy się deklarację, to w tabeli jest widoczne ID deklaracji.
 Potem, kiedy piszemy posta i chcemy oznaczyć go jako te notatki, to musimy dodać własne pole do posta.
