@@ -16,14 +16,6 @@ register_activation_hook(__FILE__, 'init_db');
 
 function init_db() {
 	global $wpdb;
-	$wpdb->query("CREATE TABLE alerty (
-  alerty_id int(11) NOT NULL AUTO_INCREMENT,
-  data date NOT NULL,
-  tresc varchar(255) NOT NULL,
-  identifier int(11) NOT NULL,
-  PRIMARY KEY (alerty_id)
-);");
-
 $wpdb->query("
 CREATE TABLE deklaracje (
   ID bigint(20) NOT NULL AUTO_INCREMENT,
@@ -198,6 +190,47 @@ add_action( 'admin_post_add_declaration', 'prefix_admin_add_declaration' );
 add_action( 'admin_post_send_mail', 'prefix_admin_send_mail' );
 add_action( 'admin_post_award_badge', 'prefix_admin_award_badge' );
 
+add_action( 'edit_form_after_editor', 'db_after_editor' );
+add_action ('post_updated', 'db_post_updated');
+
+function db_after_editor() {
+	global $wpdb;
+	$results = $wpdb->get_results("select group_id from homework_groups group by group_id;");
+	echo "Wybierz numer grupy pracy domowej: ";
+	echo '<select name="group_num">';
+	echo '<option value=0>--</option>';
+	foreach ($results as $value) {
+		echo "<option value={$value->group_id}>{$value->group_id}</option>";
+	}
+	echo '</select><br>';
+	echo 'Deadline: <input type="date" name="deadline"><hr>';
+	echo 'Deklaracja: ';
+	echo '<select name="deklaracja_id"><option value=0>--</option>';
+	$id = getCurrentIdentifier();
+	$results = $wpdb->get_results("select description, ID from deklaracje where identifier = {$id};");
+	foreach ($results as $value) {
+		echo "<option value={$value->ID}>{$value->description}</option>";
+	}
+	echo '</select>';
+}
+
+function db_post_updated() {
+	global $wpdb;
+	if($_POST["group_num"] != "0"){
+		$gn = $_POST["group_num"];
+		$deadline = $_POST["deadline"];
+		$pid = $_POST["post_ID"];
+		$wpdb->query("delete from wp_postmeta where post_id = {$pid} and meta_key like \"homework%\";");
+		$wpdb->query("insert into wp_postmeta (post_id, meta_key, meta_value) values ({$pid}, \"homework_deadline\", \"{$deadline}\");");
+		$wpdb->query("insert into wp_postmeta (post_id, meta_key, meta_value) values ({$pid}, \"homework_group\", \"{$gn}\");");
+	}
+	if($_POST["deklaracja_id"] != "0"){
+		$deklaracja_id = $_POST["deklaracja_id"];
+		$pid = $_POST["post_ID"];
+		$wpdb->query("insert into wp_postmeta (post_id, meta_key, meta_value) values ({$pid}, \"deklaracja_id\", \"{$deklaracja_id}\");");
+	}
+}
+
 function prefix_admin_award_badge() {
 	global $wpdb;
 	$id = $_GET["id"]; //przekazywanie id przez geta nie jest aż _takie_ głupie, wordpress do pewnego stopnia pilnuje uprawnień
@@ -269,14 +302,54 @@ function register_shortcodes(){
 }
 
 function db_posted_homework() {
+
+	$current_user = wp_get_current_user();
+
+	if($current_user->roles[0] != "administrator"){
+		echo 'Nie masz dostępu.';
+		return;
+	}
+
+	$post_link = get_permalink();
+
 	global $wpdb;
 	$wpdb->show_errors();
-	$results = $wpdb->get_results("select display_name, praca_content, task_number from
-		prace_domowe join wp_wslusersprofiles on prace_domowe.identifier = wp_wslusersprofiles.identifier join wp_users on wp_wslusersprofiles.user_id = wp_users.ID;");
+
+	$results = $wpdb->get_results("
+		select * from
+		(select
+		post_title,
+		m1.meta_value as homework_group,
+		str_to_date(m3.meta_value, '%Y-%m-%d') as homework_deadline,
+		wp_posts.ID as homework_post
+		from wp_posts
+		join wp_postmeta as m1 on (m1.post_id = wp_posts.ID and m1.meta_key = \"homework_group\")
+		join wp_postmeta as m3 on (m3.post_id = wp_posts.ID and m3.meta_key = \"homework_deadline\")
+		) as temp
+		where datediff(homework_deadline, now()) > 0
+		;
+		");
+
+	echo "<form action={$post_link} method=\"post\">";
+	echo "Praca domowa: ";
+	echo "<select name=\"hw_id\">";
+
+	foreach ($results as $value) {
+		echo "<option value={$value->homework_post}>$value->post_title</option>";
+	}
+
+	echo "</select>";
+	echo '<br><input type="submit" value="Wyślij!">';
+	echo "</form>";
+
+	$hw_id = (isset($_POST["hw_id"]) ? $_POST["hw_id"] : 0);
+	$results = $wpdb->get_results("select praca_content, firstname, lastname from prace_domowe join wp_wslusersprofiles on prace_domowe.identifier = wp_wslusersprofiles.identifier
+		where task_number = {$hw_id};");
+
 	foreach ($results as $hw) {
-		echo $hw->display_name;
-		echo ", praca nr ";
-		echo $hw->task_number;
+		echo $hw->firstname;
+		echo " ";
+		echo $hw->lastname;
 		echo "<br>";
 		echo $hw->praca_content;
 		echo "<hr>";
@@ -361,7 +434,7 @@ function db_notes_declarations() {
 	global $wpdb;
 	$id = getCurrentIdentifier();
 	$results = $wpdb->get_results(
-		"select deklaracje.ID as ID, deklaracje.description as description, display_name, post_title, deklaracja_post_id from deklaracje
+		"select deklaracje.description as description, display_name, post_title, deklaracja_post_id from deklaracje
 		join wp_wslusersprofiles on deklaracje.identifier = wp_wslusersprofiles.identifier
 		join wp_users on wp_users.ID = wp_wslusersprofiles.user_id
 		left join
@@ -376,12 +449,12 @@ function db_notes_declarations() {
 	");
 
 	echo '<table>';
-	echo "<tr><td><b>Osoba</b></td><td><b>Notatki</b></td><td><b>ID deklaracji</b></td><td><b>Post</b></td></tr>";
+	echo "<tr><td><b>Osoba</b></td><td><b>Notatki</b></td><td><b>Post</b></td></tr>";
 	foreach ($results as $row) {
 		$temp_post = "";
 		$permalink = get_permalink($row->deklaracja_post_id);
 		$temp_post = "<a href={$permalink}>{$row->post_title}</a>";
-		echo "<tr><td>{$row->display_name}</td><td>{$row->description}</td><td>{$row->ID}</td><td>{$temp_post}</td></tr>";
+		echo "<tr><td>{$row->display_name}</td><td>{$row->description}</td><td>{$temp_post}</td></tr>";
 	}
 	echo '</table>';
 
@@ -401,26 +474,22 @@ function db_show_homework() {
 	$id = getCurrentIdentifier();
 	$wpdb->show_errors();
 	$response = $wpdb->get_results("
-		select *, count(prace_domowe.prace_domowe_id) as cnt from
+		select * from
 		(select
 		post_title,
 		m1.meta_value as homework_group,
-		m2.meta_value as homework_number,
-		str_to_date(m3.meta_value, '%d.%m.%Y') as homework_deadline,
+		str_to_date(m3.meta_value, '%Y-%m-%d') as homework_deadline,
 		wp_posts.ID as homework_post
 		from wp_posts
 		join wp_postmeta as m1 on (m1.post_id = wp_posts.ID and m1.meta_key = \"homework_group\")
-		join wp_postmeta as m2 on (m2.post_id = wp_posts.ID and m2.meta_key = \"homework_number\")
 		join wp_postmeta as m3 on (m3.post_id = wp_posts.ID and m3.meta_key = \"homework_deadline\")
 		) as temp
-		left join prace_domowe on prace_domowe.identifier = {$id} and homework_number = prace_domowe.task_number
 		where datediff(homework_deadline, now()) > 0 and homework_group in (select group_id from homework_groups where identifier = {$id})
-		group by post_title
 		;
 		");
 	echo "Twoje prace domowe:<br><table>";
-	echo "<b><tr><td><b>Tytuł</b></td><td><b>Numer grupy</b></td><td><b>Numer pracy domowej</b></td><td><b>Deadline</b></td><td><b>Ilość wysłanych prac</b></td></tr>";
-	$vals = array("post_title", "homework_group", "homework_number", "homework_deadline", "cnt");
+	echo "<b><tr><td><b>Tytuł</b></td><td><b>Numer grupy</b></td><td><b>Deadline</b></td></tr>";#<td><b>Ilość wysłanych prac</b></td> <td><b>Numer pracy domowej</b></td>
+	$vals = array("post_title", "homework_group", "homework_deadline");
 	foreach ($response as $row) {
 		echo "<tr>";
 		foreach($vals as $val) {
@@ -443,7 +512,29 @@ function db_post_homework() {
 	echo '<div class="wrap">';
 	echo '<form action="./wp-admin/admin-post.php" method="post">';
 	echo	'<input type="hidden" name="action" value="post_hw">';
-	echo	'Numer pracy domowej: <input type="text" name="task_num"><br>';
+	$id = getCurrentIdentifier();
+	global $wpdb;
+	$results = $wpdb->get_results("
+		select * from
+		(select
+		post_title,
+		m1.meta_value as homework_group,
+		str_to_date(m3.meta_value, '%Y-%m-%d') as homework_deadline,
+		wp_posts.ID as homework_post
+		from wp_posts
+		join wp_postmeta as m1 on (m1.post_id = wp_posts.ID and m1.meta_key = \"homework_group\")
+		join wp_postmeta as m3 on (m3.post_id = wp_posts.ID and m3.meta_key = \"homework_deadline\")
+		) as temp
+		where datediff(homework_deadline, now()) > 0 and homework_group in (select group_id from homework_groups where identifier = {$id})
+		group by post_title
+		;
+		");
+	echo	'<select name="task_num">';
+		foreach ($results as $value) {
+			echo "<option value={$value->homework_post}>{$value->post_title}</option>";
+		}
+	echo	'</select>';
+
 	echo	'<textarea name="hw_content" rows=10 cols=80>Wpisz treść swych wypocin tutaj.</textarea><br>';
 	echo 	'<input type="submit" value="Wyślij!">';
 	echo '</form>';
