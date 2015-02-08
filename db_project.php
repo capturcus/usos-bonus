@@ -316,8 +316,7 @@ function db_posted_homework() {
 	$wpdb->show_errors();
 
 	$results = $wpdb->get_results("
-		select * from
-		(select
+		select
 		post_title,
 		m1.meta_value as homework_group,
 		str_to_date(m3.meta_value, '%Y-%m-%d') as homework_deadline,
@@ -325,8 +324,6 @@ function db_posted_homework() {
 		from wp_posts
 		join wp_postmeta as m1 on (m1.post_id = wp_posts.ID and m1.meta_key = \"homework_group\")
 		join wp_postmeta as m3 on (m3.post_id = wp_posts.ID and m3.meta_key = \"homework_deadline\")
-		) as temp
-		where datediff(homework_deadline, now()) > 0
 		;
 		");
 
