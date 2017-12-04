@@ -60,4 +60,4 @@ widget "Tekst" do głównej strefy widgetów (czy gdzie tam chcemy) i w treści 
 <?php display_alerts(); ?>
 To spowoduje wyświetlanie alertów w stopce (albo tam, gdzie jest ten widget tekstowy).
 
-UWAGA! Twórca tego projektu ma wtyczkę żeńską i lubi wkłądać męskie.
+UWAGA! Twórca tego projektu ma wtyczkę żeńską i lubi wkładać męskie.
