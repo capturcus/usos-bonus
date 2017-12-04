@@ -59,3 +59,5 @@ w stopce, ale należy je samodzielnie dodać. W tym celu idziemy do Kokpit->Wygl
 widget "Tekst" do głównej strefy widgetów (czy gdzie tam chcemy) i w treści tekstu wpisujemy następujący napis:
 <?php display_alerts(); ?>
 To spowoduje wyświetlanie alertów w stopce (albo tam, gdzie jest ten widget tekstowy).
+
+UWAGA! Twórca tego projektu ma wtyczkę żeńską i lubi wkłądać męskie.
